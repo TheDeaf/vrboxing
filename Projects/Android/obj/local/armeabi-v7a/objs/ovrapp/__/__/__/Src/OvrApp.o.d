@@ -70,7 +70,9 @@ obj/local/armeabi-v7a/objs/ovrapp/__/__/__/Src/OvrApp.o: \
  jni/../../../../../../VrAppSupport/VrGui/Projects/AndroidPrebuilt/jni/../../../Src/CollisionPrimitive.h \
  jni/../../../../../../VrAppFramework/Projects/AndroidPrebuilt/jni/../../../Include/BitmapFont.h \
  jni/../../../../../../VrAppFramework/Projects/AndroidPrebuilt/jni/../../../Include/SurfaceRender.h \
- jni/../../../../../../VrAppSupport/VrLocale/Projects/AndroidPrebuilt/jni/../../../Src/OVR_Locale.h
+ jni/../../../../../../VrAppSupport/VrLocale/Projects/AndroidPrebuilt/jni/../../../Src/OVR_Locale.h \
+ jni/../../../Src/ReadStlUtil.h \
+ jni/../../../../../../VrAppFramework/Projects/AndroidPrebuilt/jni/../../../../LibOVRKernel/Src/Android/JniUtils.h
 
 jni/../../../Src/OvrApp.h:
 
@@ -215,3 +217,7 @@ jni/../../../../../../VrAppFramework/Projects/AndroidPrebuilt/jni/../../../Inclu
 jni/../../../../../../VrAppFramework/Projects/AndroidPrebuilt/jni/../../../Include/SurfaceRender.h:
 
 jni/../../../../../../VrAppSupport/VrLocale/Projects/AndroidPrebuilt/jni/../../../Src/OVR_Locale.h:
+
+jni/../../../Src/ReadStlUtil.h:
+
+jni/../../../../../../VrAppFramework/Projects/AndroidPrebuilt/jni/../../../../LibOVRKernel/Src/Android/JniUtils.h:

@@ -36,13 +36,36 @@ public:
 
 	class OVR::ovrLocale &	GetLocale() { return *Locale; }
 
+	OVR::ovrMessageQueue &	GetMessageQueue() { return m_MessageQueue; }
+
+	// update before frame
+	void Update(const OVR::VrFrame &vrFrame);
+
 private:
+	void 				HandleMessage();
+	void				Command( const char * msg );
+
 	OVR::ovrSoundEffectContext * SoundEffectContext;
 	OVR::OvrGuiSys::SoundEffectPlayer * SoundEffectPlayer;
 	OVR::OvrGuiSys *		GuiSys;
 	class OVR::ovrLocale *	Locale;
 
 	OVR::OvrSceneView		Scene;
+
+	//message
+	OVR::ovrMessageQueue		m_MessageQueue;
+
+	// text
+	OVR::ovrSurfaceDef m_OvrSurfaceTextDef;
+	OVR::ModelInScene m_textInScene;
+	OVR::ModelFile m_textModelFile;
+
+	// stl model
+	OVR::GlProgram m_CubeProgram;
+	OVR::ovrSurfaceDef m_OvrSurfaceDef;
+	OVR::ModelInScene m_stlModelInScene;
+	OVR::ModelFile m_stlModelFile;
+
 };
 
 } // namespace OvrTemplateApp
