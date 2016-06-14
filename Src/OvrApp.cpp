@@ -45,6 +45,23 @@ void Java_oculus_MainActivity_nativeReciveData( JNIEnv *jni, jlong interfacePtr 
 namespace OvrTemplateApp
 {
 
+//==============================================================
+// ovrGuiSoundEffectPlayer
+	class ovrGuiSoundEffectPlayer : public OvrGuiSys::SoundEffectPlayer
+	{
+	public:
+		ovrGuiSoundEffectPlayer( ovrSoundEffectContext & context )
+				: SoundEffectContext( context )
+		{
+		}
+
+		virtual bool Has( const char * name ) const OVR_OVERRIDE { return SoundEffectContext.GetMapping().HasSound( name ); }
+		virtual void Play( const char * name ) OVR_OVERRIDE { SoundEffectContext.Play( name ); }
+
+	private:
+		ovrSoundEffectContext & SoundEffectContext;
+	};
+
 OvrApp::OvrApp()
 	: SoundEffectContext( NULL )
 	, SoundEffectPlayer( NULL )
@@ -74,7 +91,9 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 	const ovrJava * java = app->GetJava();
 	SoundEffectContext = new ovrSoundEffectContext( *java->Env, java->ActivityObject );
 	SoundEffectContext->Initialize();
-	SoundEffectPlayer = new OvrGuiSys::ovrDummySoundEffectPlayer();
+	SoundEffectPlayer = new ovrGuiSoundEffectPlayer(*SoundEffectContext);
+
+
 
 	Locale = ovrLocale::Create( *app, "default" );
 
@@ -158,7 +177,7 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 //		drawSruface2.surface = &mOvrSurfaceDef;
 //		Scene.GetEmitList().PushBack(drawSruface2);
 	}
-
+	m_dOneTimeInit = vrapi_GetTimeInSeconds();
 }
 
 void OvrApp::OneTimeShutdown()
@@ -168,7 +187,9 @@ void OvrApp::OneTimeShutdown()
 
 	delete SoundEffectContext;
 	SoundEffectContext = NULL;
-	;
+
+
+
 	m_OvrSurfaceTextDef.geo.Free();
 
 	m_OvrSurfaceDef.geo.Free();
@@ -229,6 +250,15 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 	}
 	void OvrApp::HandleMessage()
 	{
+		static bool bFirst = true;
+		if (bFirst)
+		{
+			double dTimeNow = vrapi_GetTimeInSeconds();
+			if (dTimeNow - m_dOneTimeInit > 10.0)
+			{
+				bFirst = false;
+			}
+		}
 		for ( ; ; )
 		{
 			const char * msg = m_MessageQueue.GetNextMessage();
@@ -255,6 +285,8 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 		if (mfx > fex)
 		{
 			mfx = fsx;
+			//sv_panel_touch_up
+			SoundEffectPlayer->Play("can");
 		}
 
 //		static float ss1 = ( rand() & 65535 ) / (65535.0f / 2.0f) - 1.0f;

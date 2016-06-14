@@ -27,12 +27,12 @@ public:
 						OvrApp();
 	virtual				~OvrApp();
 
-	virtual void 		Configure( OVR::ovrSettings & settings );
-	virtual void		OneTimeInit( const char * fromPackage, const char * launchIntentJSON, const char * launchIntentURI );
-	virtual void		OneTimeShutdown();
-	virtual bool 		OnKeyEvent( const int keyCode, const int repeatCount, const OVR::KeyEventType eventType );
-	virtual OVR::Matrix4f Frame( const OVR::VrFrame & vrFrame );
-	virtual OVR::Matrix4f DrawEyeView( const int eye, const float fovDegreesX, const float fovDegreesY, ovrFrameParms & frameParms );
+	virtual void 		Configure( OVR::ovrSettings & settings )OVR_OVERRIDE;
+	virtual void		OneTimeInit( const char * fromPackage, const char * launchIntentJSON, const char * launchIntentURI )OVR_OVERRIDE;
+	virtual void		OneTimeShutdown()OVR_OVERRIDE;
+	virtual bool 		OnKeyEvent( const int keyCode, const int repeatCount, const OVR::KeyEventType eventType )OVR_OVERRIDE;
+	virtual OVR::Matrix4f Frame( const OVR::VrFrame & vrFrame )OVR_OVERRIDE;
+	virtual OVR::Matrix4f DrawEyeView( const int eye, const float fovDegreesX, const float fovDegreesY, ovrFrameParms & frameParms )OVR_OVERRIDE;
 
 	class OVR::ovrLocale &	GetLocale() { return *Locale; }
 
@@ -52,8 +52,11 @@ private:
 
 	OVR::OvrSceneView		Scene;
 
+	double m_dOneTimeInit;
+
 	//message
 	OVR::ovrMessageQueue		m_MessageQueue;
+
 
 	// text
 	OVR::ovrSurfaceDef m_OvrSurfaceTextDef;

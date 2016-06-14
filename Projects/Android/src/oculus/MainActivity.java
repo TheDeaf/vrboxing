@@ -11,6 +11,7 @@ Copyright   :   Copyright 2014 Oculus VR, LLC. All Rights reserved.
 *************************************************************************************/
 package oculus;
 
+
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -20,6 +21,8 @@ import com.oculus.vrappframework.VrActivity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 
+import java.lang.Override;
+
 public class MainActivity extends VrActivity {
 	public static final String TAG = "vrboxing";
 
@@ -27,6 +30,9 @@ public class MainActivity extends VrActivity {
 	private BluetoothAdapter mBluetoothAdapter;
 	private final static String mDeviceAddress = "20:16:05:05:47:09";
 	private BluetoothChatService mChatService = null;
+
+	private BackgroundMusic mBackgroundMusic = null;
+
 
 	boolean m_bFirst = true;
 
@@ -55,6 +61,9 @@ public class MainActivity extends VrActivity {
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
 		mChatService = new BluetoothChatService( mHandler);
+
+		mBackgroundMusic = BackgroundMusic.getInstance(this);
+		mBackgroundMusic.playBackgroundMusic("sql2.mp3", true);
 
     }
 
@@ -88,6 +97,16 @@ public class MainActivity extends VrActivity {
 			}
 
 		}
+
+		mBackgroundMusic.resumeBackgroundMusic();
+
+	}
+
+	@Override
+	protected void onPause()
+	{
+		super.onPause();
+		mBackgroundMusic.pauseBackgroundMusic();
 	}
 
 	@Override
@@ -133,11 +152,11 @@ public class MainActivity extends VrActivity {
 					byte[] readBuf = (byte[]) msg.obj;
 					// construct a string from the valid bytes in the buffer
 					String readMessage = new String(readBuf, 0, msg.arg1);
-					if (m_bFirst)
-					{
+					if (m_bFirst) {
 						m_bFirst = false;
 						nativeReciveData(getAppPtr(), readMessage);
 						Log.i(TAG, readMessage);
+
 					}
 					//mTextView.clearComposingText();
 					//mTextView.append(readMessage + "\n\n");
