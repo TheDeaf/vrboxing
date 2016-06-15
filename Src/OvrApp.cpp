@@ -15,6 +15,8 @@ Copyright   :   Copyright 2014 Oculus VR, LLC. All Rights reserved.
 #include "ReadStlUtil.h"
 #include "BitmapFont.h"
 #include "Android/JniUtils.h"
+#include <OVR_Capture.h>
+#include "Kernel/OVR_String_Utils.h"
 
 using namespace OVR;
 
@@ -68,6 +70,7 @@ OvrApp::OvrApp()
 	, GuiSys( OvrGuiSys::Create() )
 	, Locale( NULL )
     , m_MessageQueue(100)
+,m_pBoxModelFile(NULL)
 {
 }
 
@@ -87,6 +90,8 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 	OVR_UNUSED( fromPackage );
 	OVR_UNUSED( launchIntentJSON );
 	OVR_UNUSED( launchIntentURI );
+
+	OVR::Capture::InitForRemoteCapture(OVR::Capture::All_Flags);
 
 	const ovrJava * java = app->GetJava();
 	SoundEffectContext = new ovrSoundEffectContext( *java->Env, java->ActivityObject );
@@ -109,7 +114,7 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 	paths.PushBackSearchPathIfValid( EST_PRIMARY_EXTERNAL_STORAGE, EFT_ROOT, "RetailMedia/", SearchPaths );
 	paths.PushBackSearchPathIfValid( EST_PRIMARY_EXTERNAL_STORAGE, EFT_ROOT, "", SearchPaths );
 
-	const char * scenePath = "Oculus/tuscany.ovrscene";
+	const char * scenePath = "Oculus/tuscany.ovrscene";//home_theater tuscany .ovrscene boxOffice
 	String SceneFile;
 	if ( GetFullPath( SearchPaths, scenePath, SceneFile ) )
 	{
@@ -168,7 +173,7 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 
 		//stl
 		m_stlModelInScene.SetModelFile(&m_stlModelFile);
-		Scene.AddModel(&m_stlModelInScene);
+		//Scene.AddModel(&m_stlModelInScene);
 		m_stlModelInScene.State.DontRenderForClientUid = 1;
 
 //		ovrDrawSurface drawSruface2;
@@ -177,11 +182,42 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 //		drawSruface2.surface = &mOvrSurfaceDef;
 //		Scene.GetEmitList().PushBack(drawSruface2);
 	}
+
+	// box model file
+	const char * boxPath = "Oculus/boxing_gloves2.ovrscene";
+	String boxFile;
+	if (GetFullPath(SearchPaths, boxPath, boxFile))
+	{
+
+		MaterialParms materialParms;
+		m_pBoxModelFile = LoadModelFile(boxFile.ToCStr(), Scene.GetDefaultGLPrograms(), materialParms);
+		if (m_pBoxModelFile != NULL)
+		{
+			m_boxInScene.SetModelFile(m_pBoxModelFile);
+			Scene.AddModel(&m_boxInScene);
+
+			Posef boxPos;
+			boxPos.Position = Vector3f(0.0f, 0.0f, -2.0f);
+			Matrix4f boxMat(boxPos);
+			boxMat *= Matrix4f::Scaling(0.001);
+			m_boxInScene.State.modelMatrix = boxMat;
+			m_boxInScene.State.DontRenderForClientUid = 1;
+
+		}
+	}
+
 	m_dOneTimeInit = vrapi_GetTimeInSeconds();
+	//Scene.SetFreeMove(true);
+
+
 }
 
 void OvrApp::OneTimeShutdown()
 {
+
+	OVR::Capture::Log(OVR::Capture::Log_Info, "OneTimeShutdown");
+	OVR::Capture::Shutdown();
+
 	delete SoundEffectPlayer;
 	SoundEffectPlayer = NULL;
 
@@ -194,6 +230,11 @@ void OvrApp::OneTimeShutdown()
 
 	m_OvrSurfaceDef.geo.Free();
 	DeleteProgram( m_CubeProgram );
+	if (m_pBoxModelFile != NULL)
+	{
+		delete m_pBoxModelFile;
+		m_pBoxModelFile = NULL;
+	}
 }
 
 bool OvrApp::OnKeyEvent( const int keyCode, const int repeatCount, const KeyEventType eventType )
@@ -254,8 +295,29 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 		if (bFirst)
 		{
 			double dTimeNow = vrapi_GetTimeInSeconds();
-			if (dTimeNow - m_dOneTimeInit > 10.0)
+			if (dTimeNow - m_dOneTimeInit > 15.0)
 			{
+				if (m_pBoxModelFile != NULL)
+				{
+					OVR::Capture::Log(OVR::Capture::Log_Info, "is not null");
+					int iSize = m_pBoxModelFile->Def.surfaces.GetSizeI();
+					OVR::Capture::Logf(OVR::Capture::Log_Info, "surface size: %d", iSize);
+					for (int i = 0; i < iSize; ++i) {
+						const ovrSurfaceDef &surfacceDef = m_pBoxModelFile->Def.surfaces[i];
+						OVR::Capture::Logf(OVR::Capture::Log_Info, "surface0: %d boundry: %s", i, StringUtils::ToString(surfacceDef.cullingBounds).ToCStr());
+						OVR::Capture::Logf(OVR::Capture::Log_Info, "surface0: %d vertexCount: %d", i,  surfacceDef.geo.vertexCount);
+						OVR::Capture::Logf(OVR::Capture::Log_Info, "surface0: %d indexCount: %d", i,  surfacceDef.geo.indexCount);
+					}
+
+					OVR::Capture::Log(OVR::Capture::Log_Info, "stl info");
+					OVR::Capture::Logf(OVR::Capture::Log_Info, "stl: %d boundry: %s", 1, StringUtils::ToString(m_OvrSurfaceDef.cullingBounds).ToCStr());
+					OVR::Capture::Logf(OVR::Capture::Log_Info, "stl: %d vertexCount: %d", 1,  m_OvrSurfaceDef.geo.vertexCount);
+					OVR::Capture::Logf(OVR::Capture::Log_Info, "stl: %d indexCount: %d", 1,  m_OvrSurfaceDef.geo.indexCount);
+				}
+				else
+				{
+					OVR::Capture::Log(OVR::Capture::Log_Info, "is null");
+				}
 				bFirst = false;
 			}
 		}
@@ -286,7 +348,7 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 		{
 			mfx = fsx;
 			//sv_panel_touch_up
-			SoundEffectPlayer->Play("can");
+			//SoundEffectPlayer->Play("can");
 		}
 
 //		static float ss1 = ( rand() & 65535 ) / (65535.0f / 2.0f) - 1.0f;
@@ -309,6 +371,26 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 		Matrix4f stlMatrix(stlPos);
 
 		m_stlModelInScene.State.modelMatrix = stlMatrix;
+
+		// box move form z 0 to front
+		static float boxZ = 0.0f;
+		float fBoxS = 0.1f;
+		float fBoxE = -1.0f;
+		boxZ -= fStep;
+		if (boxZ < fBoxE)
+		{
+			boxZ = fBoxS;
+			SoundEffectPlayer->Play("can");
+		}
+		Posef boxPos;
+		boxPos.Position = Vector3f(0.4f, 1.5f, boxZ);
+		//boxPos.Orientation = Quatf(Matrix4f::RotationZ(-Mathf::PiOver2));
+		Matrix4f boxMatrix(boxPos);
+
+		boxMatrix *= Matrix4f::Scaling(0.001);
+		boxMatrix *= Matrix4f::RotationY(Mathf::PiOver2);
+		boxMatrix *= Matrix4f::RotationZ(-Mathf::PiOver2);
+		m_boxInScene.State.modelMatrix = boxMatrix;
 	}
 
 } // namespace OvrTemplateApp

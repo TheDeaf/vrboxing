@@ -69,6 +69,10 @@ private:
 	OVR::ModelInScene m_stlModelInScene;
 	OVR::ModelFile m_stlModelFile;
 
+	// box model
+	OVR::ModelInScene m_boxInScene;
+	OVR::ModelFile *m_pBoxModelFile;
+
 };
 
 } // namespace OvrTemplateApp
