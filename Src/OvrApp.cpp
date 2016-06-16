@@ -30,13 +30,22 @@ jlong Java_oculus_MainActivity_nativeSetAppInterface( JNIEnv * jni, jclass clazz
 	return (new OvrTemplateApp::OvrApp())->SetActivity( jni, clazz, activity, fromPackageName, commandString, uriString );
 }
 
-void Java_oculus_MainActivity_nativeReciveData( JNIEnv *jni, jlong interfacePtr , jstring receiveString )
+void Java_oculus_MainActivity_nativeReciveData( JNIEnv *jni, jclass clazz, jlong interfacePtr , int value )
 {
 	// This is called by the java UI thread.
 	OvrTemplateApp::OvrApp * ovrApp = static_cast< OvrTemplateApp::OvrApp * >( ( ( OVR::App * )interfacePtr )->GetAppInterface() );
-	JavaUTFChars utfstring(jni, receiveString);
+	//JavaUTFChars utfstring(jni, receiveString);
+	const char * msg = ovrApp->GetMessageQueue().GetNextMessage();
+	int iMaxValue = value;
+	if ( msg != NULL )
+	{
+		int iLastValue = 0.0;
+		sscanf( msg, "%d", &iLastValue);
+		iMaxValue = OVRMath_Max(iLastValue, value);
+	}
+	free( (void *)msg );
 	ovrApp->GetMessageQueue().ClearMessages();
-	ovrApp->GetMessageQueue().PostPrintf( "%s", utfstring.ToStr() );
+	ovrApp->GetMessageQueue().PostPrintf( "%d", iMaxValue );
 
 }
 
@@ -71,12 +80,15 @@ OvrApp::OvrApp()
 	, Locale( NULL )
     , m_MessageQueue(100)
 ,m_pBoxModelFile(NULL)
+,m_bFighting(false)
 {
+	m_pAnimationMgr = new AnimationManager(&m_boxInScene);
 }
 
 OvrApp::~OvrApp()
 {
 	OvrGuiSys::Destroy( GuiSys );
+	delete m_pAnimationMgr;
 }
 
 void OvrApp::Configure( ovrSettings & settings )
@@ -134,15 +146,15 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 	Scene.AddModel(&m_textInScene);
 	// set text modelMatrix
 	Posef textPos;
-	textPos.Position = Vector3f(0.0f, 2.0f, -2.0f);
+	textPos.Position = Vector3f(-0.5f, 2.0f, -2.0f);
 	Matrix4f textMat(textPos);
 	m_textInScene.State.modelMatrix = textMat;
-	m_textInScene.State.DontRenderForClientUid = 1;	// default is -1 not render scene#frame
+	//m_textInScene.State.DontRenderForClientUid = 1;	// default is -1 not render scene#frame
 
 	// text
-	String s = String::Format("no message recive!");
-	float textScale = 1.0;
-	Vector4f textColor = Vector4f(1.0, 0.0, 0.0, 1.0);
+	String s = String::Format("Hit it!");
+	float textScale = 2.0;
+	Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
 	m_OvrSurfaceTextDef.geo.Free();
 	m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
 
@@ -174,7 +186,7 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 		//stl
 		m_stlModelInScene.SetModelFile(&m_stlModelFile);
 		//Scene.AddModel(&m_stlModelInScene);
-		m_stlModelInScene.State.DontRenderForClientUid = 1;
+		//m_stlModelInScene.State.DontRenderForClientUid = 1;
 
 //		ovrDrawSurface drawSruface2;
 //		drawSruface2.modelMatrix = &mModelMatrix;
@@ -201,7 +213,7 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 			Matrix4f boxMat(boxPos);
 			boxMat *= Matrix4f::Scaling(0.001);
 			m_boxInScene.State.modelMatrix = boxMat;
-			m_boxInScene.State.DontRenderForClientUid = 1;
+			m_boxInScene.State.DontRenderForClientUid = -1;// defaule not render it
 
 		}
 	}
@@ -280,21 +292,24 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 
 	void OvrApp::Command( const char * msg )
 	{
-		String s = String::Format("%s", msg);
-		float textScale = 1.0;
-		Vector4f textColor = Vector4f(1.0, 0.0, 0.0, 1.0);
-		m_OvrSurfaceTextDef.geo.Free();
-		m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
-
-		m_textModelFile.Def.surfaces.Clear();
-		m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
+		int iValue = 0.0;
+		sscanf( msg, "%d", &iValue);
+		m_iMaxValue = OVRMath_Max(m_iMaxValue, iValue);
+//		String s = String::Format("%s", msg);
+//		float textScale = 1.0;
+//		Vector4f textColor = Vector4f(1.0, 0.0, 0.0, 1.0);
+//		m_OvrSurfaceTextDef.geo.Free();
+//		m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
+//
+//		m_textModelFile.Def.surfaces.Clear();
+//		m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
 	}
 	void OvrApp::HandleMessage()
 	{
 		static bool bFirst = true;
+		double dTimeNow = vrapi_GetTimeInSeconds();
 		if (bFirst)
 		{
-			double dTimeNow = vrapi_GetTimeInSeconds();
 			if (dTimeNow - m_dOneTimeInit > 15.0)
 			{
 				if (m_pBoxModelFile != NULL)
@@ -328,69 +343,106 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 			{
 				break;
 			}
+			if (!m_bFighting)
+			{
+				m_bFighting = true;
+				// begin fight
+				m_iMaxValue = 0;
+			}
 			Command( msg );
 			free( (void *)msg );
+			m_dFightTime = dTimeNow;
+		}
+		if(m_bFighting && (dTimeNow - m_dFightTime) > 1.0)
+		{
+			m_bFighting = false;
+			// begin animation
+			if (!m_pAnimationMgr->IsAnimationing())
+			{
+				SoundEffectPlayer->Play("can");
+				m_pAnimationMgr->BeginAnimation(dTimeNow, 0.5);
+				String s = "come on!";
+				float textScale = 2.0;
+				Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
+				m_OvrSurfaceTextDef.geo.Free();
+				m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
+
+				m_textModelFile.Def.surfaces.Clear();
+				m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
+			}
 		}
 	}
 	void OvrApp::Update(const OVR::VrFrame &vrFrame)
 	{
+		if (m_pAnimationMgr->Update(vrFrame))
+		{
+			// end animation
+			String s = String::Format("%d", m_iMaxValue);
+			float textScale = 2.0;
+			Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
+			m_OvrSurfaceTextDef.geo.Free();
+			m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
+
+			m_textModelFile.Def.surfaces.Clear();
+			m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
+		}
 
 		//text update
 
 		// todo move to frame
 
 		// stl model pos
-		static float mfx = 0.0f;
-		float fsx = -1.0f, fex = 1.0f;
-		static float fStep = 0.01f;
-		mfx += fStep;
-		if (mfx > fex)
-		{
-			mfx = fsx;
-			//sv_panel_touch_up
-			//SoundEffectPlayer->Play("can");
-		}
-
-//		static float ss1 = ( rand() & 65535 ) / (65535.0f / 2.0f) - 1.0f;
-//		static float ss2 = ( rand() & 65535 ) / (65535.0f / 2.0f) - 1.0f;
-//		static float ss3 = ( rand() & 65535 ) / (65535.0f / 2.0f) - 1.0f;
-//		float fTmie = vrapi_GetTimeInSeconds();
-//		const ovrMatrix4f rotation = ovrMatrix4f_CreateRotation(
-//				ss1 *fTmie,
-//				ss2 *fTmie,
-//				ss3 *fTmie);
-//		const ovrMatrix4f translation = ovrMatrix4f_CreateTranslation(
-//				mfx,
-//				1.2,
-//				-2.0f );
-//		const ovrMatrix4f matTT = ovrMatrix4f_Multiply( &translation, &rotation );
-		Posef stlPos;
-		stlPos.Position = Vector3f(mfx, 1.2f, -2.0f);
-		//stlPos.Orientation = Quatf(ss1 *fTmie, ss2 * fTmie, ss3 * fTmie, 2.0f);
-		//stlPos.Rotate(Vector3f(ss1 *fTmie, ss2 * fTmie, ss3 * fTmie));
-		Matrix4f stlMatrix(stlPos);
-
-		m_stlModelInScene.State.modelMatrix = stlMatrix;
+//		static float mfx = 0.0f;
+//		float fsx = -1.0f, fex = 1.0f;
+//		static float fStep = 0.01f;
+//		mfx += fStep;
+//		if (mfx > fex)
+//		{
+//			mfx = fsx;
+//			//sv_panel_touch_up
+//			//SoundEffectPlayer->Play("can");
+//		}
+//
+////		static float ss1 = ( rand() & 65535 ) / (65535.0f / 2.0f) - 1.0f;
+////		static float ss2 = ( rand() & 65535 ) / (65535.0f / 2.0f) - 1.0f;
+////		static float ss3 = ( rand() & 65535 ) / (65535.0f / 2.0f) - 1.0f;
+////		float fTmie = vrapi_GetTimeInSeconds();
+////		const ovrMatrix4f rotation = ovrMatrix4f_CreateRotation(
+////				ss1 *fTmie,
+////				ss2 *fTmie,
+////				ss3 *fTmie);
+////		const ovrMatrix4f translation = ovrMatrix4f_CreateTranslation(
+////				mfx,
+////				1.2,
+////				-2.0f );
+////		const ovrMatrix4f matTT = ovrMatrix4f_Multiply( &translation, &rotation );
+//		Posef stlPos;
+//		stlPos.Position = Vector3f(mfx, 1.2f, -2.0f);
+//		//stlPos.Orientation = Quatf(ss1 *fTmie, ss2 * fTmie, ss3 * fTmie, 2.0f);
+//		//stlPos.Rotate(Vector3f(ss1 *fTmie, ss2 * fTmie, ss3 * fTmie));
+//		Matrix4f stlMatrix(stlPos);
+//
+//		m_stlModelInScene.State.modelMatrix = stlMatrix;
 
 		// box move form z 0 to front
-		static float boxZ = 0.0f;
-		float fBoxS = 0.1f;
-		float fBoxE = -1.0f;
-		boxZ -= fStep;
-		if (boxZ < fBoxE)
-		{
-			boxZ = fBoxS;
-			SoundEffectPlayer->Play("can");
-		}
-		Posef boxPos;
-		boxPos.Position = Vector3f(0.4f, 1.5f, boxZ);
-		//boxPos.Orientation = Quatf(Matrix4f::RotationZ(-Mathf::PiOver2));
-		Matrix4f boxMatrix(boxPos);
-
-		boxMatrix *= Matrix4f::Scaling(0.001);
-		boxMatrix *= Matrix4f::RotationY(Mathf::PiOver2);
-		boxMatrix *= Matrix4f::RotationZ(-Mathf::PiOver2);
-		m_boxInScene.State.modelMatrix = boxMatrix;
+//		static float boxZ = 0.0f;
+//		float fBoxS = 0.1f;
+//		float fBoxE = -1.0f;
+//		boxZ -= fStep;
+//		if (boxZ < fBoxE)
+//		{
+//			boxZ = fBoxS;
+//			SoundEffectPlayer->Play("can");
+//		}
+//		Posef boxPos;
+//		boxPos.Position = Vector3f(0.4f, 1.5f, boxZ);
+//		//boxPos.Orientation = Quatf(Matrix4f::RotationZ(-Mathf::PiOver2));
+//		Matrix4f boxMatrix(boxPos);
+//
+//		boxMatrix *= Matrix4f::Scaling(0.001);
+//		boxMatrix *= Matrix4f::RotationY(Mathf::PiOver2);
+//		boxMatrix *= Matrix4f::RotationZ(-Mathf::PiOver2);
+//		m_boxInScene.State.modelMatrix = boxMatrix;
 	}
 
 } // namespace OvrTemplateApp

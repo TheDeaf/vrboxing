@@ -17,6 +17,7 @@ Copyright   :   Copyright 2014 Oculus VR, LLC. All Rights reserved.
 #include "SoundEffectContext.h"
 #include <memory>
 #include "GuiSys.h"
+#include "AnimationManager.h"
 
 namespace OvrTemplateApp
 {
@@ -72,6 +73,14 @@ private:
 	// box model
 	OVR::ModelInScene m_boxInScene;
 	OVR::ModelFile *m_pBoxModelFile;
+
+	//
+	bool m_bFighting;
+	double m_dFightTime;	//seconds
+	AnimationManager* m_pAnimationMgr;
+
+	//
+	int m_iMaxValue;
 
 };
 

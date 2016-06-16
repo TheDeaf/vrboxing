@@ -28,7 +28,7 @@ public class MainActivity extends VrActivity {
 
 
 	private BluetoothAdapter mBluetoothAdapter;
-	private final static String mDeviceAddress = "20:16:05:05:47:09";
+	private final static String mDeviceAddress = "20:16:05:05:54:93";//"20:16:05:05:47:09";
 	private BluetoothChatService mChatService = null;
 
 	private BackgroundMusic mBackgroundMusic = null;
@@ -45,7 +45,7 @@ public class MainActivity extends VrActivity {
 
 
     public static native long nativeSetAppInterface( VrActivity act, String fromPackageNameString, String commandString, String uriString );
-	public static native void nativeReciveData(long appPtr, String receiveData);
+	public static native void nativeReciveData(long appPtr, int value);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -159,21 +159,25 @@ public class MainActivity extends VrActivity {
 			//
 			if (iByteEndIndex - iByteStartIndex == 6)// 7 bytes
 			{
-				int iLength = mReceiveDatas[iByteStartIndex+1];
-				Log.i(TAG,"iLength:"+Integer.toString(iLength));
+				//int iLength = mReceiveDatas[iByteStartIndex+1];
+				//Log.i(TAG,"iLength:"+Integer.toString(iLength));
 				int iType = mReceiveDatas[iByteStartIndex+2];
-				Log.i(TAG, "iType:"+Integer.toString(iType));
-				int iLR = mReceiveDatas[iByteStartIndex+3];
-				Log.i(TAG, "LR:"+Integer.toString(iLR));
+				//Log.i(TAG, "iType:"+Integer.toString(iType));
+				//int iLR = mReceiveDatas[iByteStartIndex+3];
+				//Log.i(TAG, "LR:"+Integer.toString(iLR));
 				if(19 == iType)
 				{
 					int value= 0;
 					//由高位到低位
 					for (int i = 0; i < 2; i++) {
-						int shift= (2 - 1 - i) * 8;
+						int shift=  i * 8;
 						value +=(mReceiveDatas[i+ iByteStartIndex+4] & 0x000000FF) << shift;//往高位游
 					}
-					Log.i(TAG, "iValue:"+Integer.toString(value));
+					if (value < 650)
+					{
+						nativeReciveData(getAppPtr(), 650 - value);
+						Log.i(TAG, "iValue:" + Integer.toString(value));
+					}
 				}
 			}
 		}
@@ -225,9 +229,7 @@ public class MainActivity extends VrActivity {
 					String readMessage = new String(readBuf, 0, msg.arg1);
 					if (m_bFirst) {
 						m_bFirst = false;
-						nativeReciveData(getAppPtr(), readMessage);
 						Log.i(TAG, readMessage);
-
 					}
 					//mTextView.clearComposingText();
 					//mTextView.append(readMessage + "\n\n");
