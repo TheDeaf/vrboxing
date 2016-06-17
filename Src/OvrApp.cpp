@@ -376,7 +376,7 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 				double dSpeed = 0.5;
 				GetVoiceNameAndSpeed(m_iMaxValue, strVoice, dSpeed, m_strMessage);
 				SoundEffectPlayer->Play(strVoice.ToCStr());
-				m_pAnimationMgr->BeginAnimation(dTimeNow, dSpeed, Scene.GetEyeYaw());
+				m_pAnimationMgr->BeginAnimation(dTimeNow, dSpeed);
 //				String s = "come on!";
 //				float textScale = 2.0;
 //				Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
@@ -390,7 +390,7 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 	}
 	void OvrApp::Update(const OVR::VrFrame &vrFrame)
 	{
-		if (m_pAnimationMgr->Update(vrFrame))
+		if (m_pAnimationMgr->Update(vrFrame, Scene.GetEyeYaw()))
 		{
 			// end animation
 			String s = String::Format("%s %d", m_strMessage.ToCStr(), m_iMaxValue);

@@ -19,7 +19,7 @@ namespace OvrTemplateApp
     {
 
     }
-    bool AnimationManager::BeginAnimation(double dStartTime, double dSpeed, float fEyeYaw)
+    bool AnimationManager::BeginAnimation(double dStartTime, double dSpeed)
     {
         if (m_pModelInScene == NULL)
             return false;
@@ -30,11 +30,10 @@ namespace OvrTemplateApp
         m_pModelInScene->State.DontRenderForClientUid = 0;
         m_dStartTime = dStartTime;
         m_dSpeed = dSpeed;
-        m_fEyeYaw = fEyeYaw;
 
         return true;
     }
-    bool AnimationManager::Update(const OVR::VrFrame &vrFrame)
+    bool AnimationManager::Update(const OVR::VrFrame &vrFrame, float fEyeYaw)
     {
         if (m_pModelInScene == NULL || !m_bAnimationing)
             return false;
@@ -42,8 +41,8 @@ namespace OvrTemplateApp
         double dAnimationTime = dTimeNow - m_dStartTime;
         if (dAnimationTime < 1.0E-5)
             dAnimationTime = 0.0;
-        Vector3f ptS = Matrix4f::RotationY(m_fEyeYaw).Transform(Vector3f(0.25f, 1.5f, 0.1f));//(0.4f, 1.5f, 0.1f);
-        Vector3f ptE = Matrix4f::RotationY(m_fEyeYaw).Transform(Vector3f(0.25f, 1.5f, -1.4f));//(0.4f, 1.5f, -1.0f);
+        Vector3f ptS = Matrix4f::RotationY(fEyeYaw).Transform(Vector3f(0.25f, 1.5f, 0.1f));//(0.4f, 1.5f, 0.1f);
+        Vector3f ptE = Matrix4f::RotationY(fEyeYaw).Transform(Vector3f(0.25f, 1.5f, -1.4f));//(0.4f, 1.5f, -1.0f);
         Vector3f vecMove = ptE - ptS;
         float fLength = vecMove.Length();
         double dMoveAllTime = fLength / m_dSpeed;
@@ -64,7 +63,7 @@ namespace OvrTemplateApp
         Matrix4f boxMatrix(boxPos);
 
         boxMatrix *= Matrix4f::Scaling(0.001);
-        boxMatrix *= Matrix4f::RotationY(m_fEyeYaw);
+        boxMatrix *= Matrix4f::RotationY(fEyeYaw);
         boxMatrix *= Matrix4f::RotationY(Mathf::PiOver2);
         boxMatrix *= Matrix4f::RotationZ(-Mathf::PiOver2);
         m_pModelInScene->State.modelMatrix = boxMatrix;

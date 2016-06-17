@@ -15,11 +15,11 @@ namespace OvrTemplateApp {
         AnimationManager(OVR::ModelInScene *pModelInScene);
 
         //begin animation
-        bool BeginAnimation(double dStartTime, double dSpeed, float fEyeYaw);
+        bool BeginAnimation(double dStartTime, double dSpeed);
 
         // update before frame
         // if first end animation return true
-        bool Update(const OVR::VrFrame &vrFrame);
+        bool Update(const OVR::VrFrame &vrFrame, float fEyeYaw);
 
         // get is animationing
         bool IsAnimationing() const {return m_bAnimationing;}
@@ -33,8 +33,6 @@ namespace OvrTemplateApp {
         double m_dStartTime;
         // animation time
         double m_dSpeed;
-        //
-        float m_fEyeYaw;
 
     };
 }
