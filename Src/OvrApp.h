@@ -45,6 +45,7 @@ public:
 private:
 	void 				HandleMessage();
 	void				Command( const char * msg );
+	void                GetVoiceNameAndSpeed(int hitValue, OVR::String &strVoice, double &dSpeed, OVR::String &strMessage) const;
 
 	OVR::ovrSoundEffectContext * SoundEffectContext;
 	OVR::OvrGuiSys::SoundEffectPlayer * SoundEffectPlayer;
@@ -81,6 +82,8 @@ private:
 
 	//
 	int m_iMaxValue;
+	//
+	OVR::String m_strMessage;
 
 };
 

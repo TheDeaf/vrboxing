@@ -145,10 +145,7 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 	m_textInScene.SetModelFile(&m_textModelFile);
 	Scene.AddModel(&m_textInScene);
 	// set text modelMatrix
-	Posef textPos;
-	textPos.Position = Vector3f(-0.5f, 2.0f, -2.0f);
-	Matrix4f textMat(textPos);
-	m_textInScene.State.modelMatrix = textMat;
+
 	//m_textInScene.State.DontRenderForClientUid = 1;	// default is -1 not render scene#frame
 
 	// text
@@ -304,6 +301,22 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 //		m_textModelFile.Def.surfaces.Clear();
 //		m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
 	}
+
+	void OvrApp::GetVoiceNameAndSpeed(int hitValue, String &strVoice, double &dSpeed, OVR::String &strMessage) const
+	{
+		String message[8] ={"are you ok", "go home", "oh no", "yes", "good",
+		"very good", "oh my god", "you are monster"};
+		int iIndex = hitValue / 80;
+		if (iIndex < 0)
+			iIndex = 0;
+		if (iIndex > 7)
+			iIndex = 7;
+
+		dSpeed = 0.6 + 0.125 * iIndex;
+		strVoice = String::Format("%d", iIndex + 1);
+		strMessage = message[iIndex];
+
+	}
 	void OvrApp::HandleMessage()
 	{
 		static bool bFirst = true;
@@ -359,16 +372,19 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 			// begin animation
 			if (!m_pAnimationMgr->IsAnimationing())
 			{
-				SoundEffectPlayer->Play("can");
-				m_pAnimationMgr->BeginAnimation(dTimeNow, 0.5);
-				String s = "come on!";
-				float textScale = 2.0;
-				Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
-				m_OvrSurfaceTextDef.geo.Free();
-				m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
-
-				m_textModelFile.Def.surfaces.Clear();
-				m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
+				String strVoice;
+				double dSpeed = 0.5;
+				GetVoiceNameAndSpeed(m_iMaxValue, strVoice, dSpeed, m_strMessage);
+				SoundEffectPlayer->Play(strVoice.ToCStr());
+				m_pAnimationMgr->BeginAnimation(dTimeNow, dSpeed, Scene.GetEyeYaw());
+//				String s = "come on!";
+//				float textScale = 2.0;
+//				Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
+//				m_OvrSurfaceTextDef.geo.Free();
+//				m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
+//
+//				m_textModelFile.Def.surfaces.Clear();
+//				m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
 			}
 		}
 	}
@@ -377,7 +393,7 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 		if (m_pAnimationMgr->Update(vrFrame))
 		{
 			// end animation
-			String s = String::Format("%d", m_iMaxValue);
+			String s = String::Format("%s %d", m_strMessage.ToCStr(), m_iMaxValue);
 			float textScale = 2.0;
 			Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
 			m_OvrSurfaceTextDef.geo.Free();
@@ -386,6 +402,17 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 			m_textModelFile.Def.surfaces.Clear();
 			m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
 		}
+
+		// update text pos
+		Vector3f textPt = Matrix4f::RotationY(Scene.GetEyeYaw()).Transform(Vector3f(-0.5f, 2.0f, -1.5f));
+		Posef textPos;
+		textPos.Position = textPt;
+		Matrix4f textMat(textPos);
+		textMat *= Matrix4f::RotationY(Scene.GetEyeYaw());
+		m_textInScene.State.modelMatrix = textMat;
+		//float f1 = vrFrame.Input.sticks[0][0];
+		//float f2 = vrFrame.Input.sticks[0][1];
+		//OVR::Capture::Logf(OVR::Capture::Log_Info, "input1: %f input2: %f", f1,  f2);
 
 		//text update
 

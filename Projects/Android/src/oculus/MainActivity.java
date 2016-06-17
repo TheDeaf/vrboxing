@@ -28,7 +28,8 @@ public class MainActivity extends VrActivity {
 
 
 	private BluetoothAdapter mBluetoothAdapter;
-	private final static String mDeviceAddress = "20:16:05:05:54:93";//"20:16:05:05:47:09";
+	private final static String mLDeviceAddress = "20:16:05:05:47:09";
+	private final static String mRDeviceAddress = "20:16:05:05:54:93";//"20:16:05:05:47:09";
 	private BluetoothChatService mChatService = null;
 
 	private BackgroundMusic mBackgroundMusic = null;
@@ -68,6 +69,27 @@ public class MainActivity extends VrActivity {
 
     }
 
+	// try to connect device
+	// because sometime it wile lost connect
+	private void DelyConnectDevice(long delayMillis)
+	{
+		new Handler().postDelayed(new Runnable(){
+			public void run() {
+				Log.i(TAG, "delyConnectDevice");
+				BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mRDeviceAddress);
+				if (null != device)
+				{
+					Log.i(TAG, "L device connect");
+					mChatService.connect(device, true);
+				}
+				else
+				{
+					Log.i(TAG, "L device null");
+				}
+			}
+		}, delayMillis);
+	}
+
 	@Override
 	public void onResume() {
 		super.onResume();
@@ -85,16 +107,24 @@ public class MainActivity extends VrActivity {
 				Log.i(TAG, "mChatService start");
 				mChatService.start();
 				Log.i(TAG, "getRemoteDevice");
-				BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mDeviceAddress);
-				if (null != device)
-				{
-					Log.i(TAG, "device connect");
-					mChatService.connect(device, true);
-				}
-				else
-				{
-					Log.i(TAG, "device null");
-				}
+
+				DelyConnectDevice(5000);
+
+//				if(mBluetoothAdapter.getState() != mBluetoothAdapter.STATE_CONNECTING)
+//				{
+//					//try to connect r device
+//					device = mBluetoothAdapter.getRemoteDevice(mRDeviceAddress);
+//					if(null != device)
+//					{
+//						Log.i(TAG, "R device connect");
+//						mChatService.connect(device, true);
+//					}
+//					else
+//					{
+//						Log.i(TAG, "R device null");
+//					}
+//				}
+
 			}
 
 		}
@@ -168,15 +198,16 @@ public class MainActivity extends VrActivity {
 				if(19 == iType)
 				{
 					int value= 0;
-					//由高位到低位
+					//
 					for (int i = 0; i < 2; i++) {
 						int shift=  i * 8;
-						value +=(mReceiveDatas[i+ iByteStartIndex+4] & 0x000000FF) << shift;//往高位游
+						value +=(mReceiveDatas[i+ iByteStartIndex+4] & 0x000000FF) << shift;//
 					}
-					if (value < 650)
-					{
-						nativeReciveData(getAppPtr(), 650 - value);
+					if (value == 0) {
 						Log.i(TAG, "iValue:" + Integer.toString(value));
+					}
+					if (value < 650) {
+						nativeReciveData(getAppPtr(), 650 - value);
 					}
 				}
 			}
@@ -242,12 +273,16 @@ public class MainActivity extends VrActivity {
 					//   Toast.makeText(activity, "Connected to "
 					//           + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
 					//}
+					Log.i(TAG, "Connected to " + msg.getData().getString(Constants.DEVICE_NAME));
 					break;
 				case Constants.MESSAGE_TOAST:
 					// if (null != activity) {
 					//     Toast.makeText(activity, msg.getData().getString(Constants.TOAST),
 					//             Toast.LENGTH_SHORT).show();
 					//}
+					// connect after 5seconds
+					DelyConnectDevice(5000);
+					Log.i(TAG, "message_toast " + msg.getData().getString(Constants.TOAST));
 					break;
 			}
 		}
