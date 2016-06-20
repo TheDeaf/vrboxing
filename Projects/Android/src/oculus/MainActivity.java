@@ -35,6 +35,7 @@ public class MainActivity extends VrActivity {
 	private BackgroundMusic mBackgroundMusic = null;
 
 	private byte[] mReceiveDatas = null;
+	private BoxingDataUtil mBoxingDataUtil = null;
 
 	boolean m_bFirst = true;
 
@@ -66,6 +67,8 @@ public class MainActivity extends VrActivity {
 
 		mBackgroundMusic = BackgroundMusic.getInstance(this);
 		mBackgroundMusic.playBackgroundMusic("sql2.mp3", true);
+
+		mBoxingDataUtil = new BoxingDataUtil(mBoxingDataHandler);
 
     }
 
@@ -150,78 +153,8 @@ public class MainActivity extends VrActivity {
 		}
 	}
 
-	protected synchronized void AddReceiveData(byte[] readBuf, int count) {
-		mReceiveDatas = ByteUtil.Merge(mReceiveDatas, readBuf, count);
-		if(null == mReceiveDatas)
-			return;
-
-		// find rangeData
-		final byte byteStart = (byte)0xAC;
-		final byte byteEnd = (byte)0xEF;
-		int iByteEndIndex = -1;
-		int iLastByteStartIndex = -1;
-		while (true)
-		{
-			boolean bFind = false;
-			int iByteStartIndex = -1;
-			for(int iIndex = iByteEndIndex+1; iIndex < mReceiveDatas.length;iIndex++)
-			{
-				if(iByteStartIndex < 0)// not find start
-				{
-					if(byteStart == mReceiveDatas[iIndex])// find start
-					{
-						iByteStartIndex = iIndex;
-						iLastByteStartIndex = iIndex;
-					}
-				}
-				else if(byteEnd == mReceiveDatas[iIndex])//find end
-				{
-					iByteEndIndex = iIndex;
-					iLastByteStartIndex = -1;
-					bFind = true;
-					break;
-				}
-			}
-			if(!bFind)
-			{
-				break;
-			}
-			//
-			if (iByteEndIndex - iByteStartIndex == 6)// 7 bytes
-			{
-				//int iLength = mReceiveDatas[iByteStartIndex+1];
-				//Log.i(TAG,"iLength:"+Integer.toString(iLength));
-				int iType = mReceiveDatas[iByteStartIndex+2];
-				//Log.i(TAG, "iType:"+Integer.toString(iType));
-				//int iLR = mReceiveDatas[iByteStartIndex+3];
-				//Log.i(TAG, "LR:"+Integer.toString(iLR));
-				if(19 == iType)
-				{
-					int value= 0;
-					//
-					for (int i = 0; i < 2; i++) {
-						int shift=  i * 8;
-						value +=(mReceiveDatas[i+ iByteStartIndex+4] & 0x000000FF) << shift;//
-					}
-					if (value == 0) {
-						Log.i(TAG, "iValue:" + Integer.toString(value));
-					}
-					if (value < 650) {
-						nativeReciveData(getAppPtr(), 650 - value);
-					}
-				}
-			}
-		}
-		int iRemoveCount = 0;
-		if (-1 == iLastByteStartIndex)
-		{
-			iRemoveCount = mReceiveDatas.length;
-		}
-		else
-		{
-			iRemoveCount = iLastByteStartIndex;
-		}
-		mReceiveDatas = ByteUtil.GetLastBytes(mReceiveDatas, iRemoveCount);
+	protected void AddReceiveData(byte[] readBuf, int count) {
+		mBoxingDataUtil.AddNewData(readBuf, count);
 	}
 
 	/**
@@ -284,6 +217,30 @@ public class MainActivity extends VrActivity {
 					DelyConnectDevice(5000);
 					Log.i(TAG, "message_toast " + msg.getData().getString(Constants.TOAST));
 					break;
+			}
+		}
+	};
+
+	/**
+	 * The Handler that gets information back from the BoxingDataUtil
+	 */
+	private final Handler mBoxingDataHandler = new Handler(){
+		@Override
+		public void handleMessage(Message msg)
+		{
+			switch (msg.what)
+			{
+				case Constants.MESSAGE_BOXING_START:
+				{
+					break;
+				}
+				case Constants.MESSAGE_BOXING_END:
+				{
+					int hitValue = msg.getData().getInt(Constants.HitMaxValue);
+					Log.i(TAG, "boing end value:"+Integer.toString(hitValue));
+					nativeReciveData(getAppPtr(), hitValue);
+					break;
+				}
 			}
 		}
 	};

@@ -6,6 +6,7 @@
 #define OVR_SDK_MOBILE_ANIMATIONMANAGER_H
 
 #include "SceneView.h"
+#include "AnimationPath.h"
 
 namespace OvrTemplateApp {
 
@@ -25,6 +26,7 @@ namespace OvrTemplateApp {
         bool IsAnimationing() const {return m_bAnimationing;}
 
     private:
+        void InitAnimationPath(double dStartTime, double dSpeed);
         //
         bool m_bAnimationing;
         //
@@ -33,6 +35,9 @@ namespace OvrTemplateApp {
         double m_dStartTime;
         // animation time
         double m_dSpeed;
+
+        // animation path
+        AnimationPath m_animationPath;
 
     };
 }

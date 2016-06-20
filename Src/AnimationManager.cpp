@@ -69,5 +69,27 @@ namespace OvrTemplateApp
         m_pModelInScene->State.modelMatrix = boxMatrix;
         return false;
     }
+    void AnimationManager::InitAnimationPath(double dStartTime, double dSpeed)
+    {
+        m_animationPath.clear();
+        float fR = 1.2f;
+        float fSRadian = Mathf::Pi / 6.0f; // 30
+        float fERadian = Mathf::Pi / 3.0f; // 60
+        double dLength = (fERadian - fSRadian) * fR;
+        double dAllTime = dLength / dSpeed;
+        double dDelTime = dAllTime / 6.0;
+        float dDelRadian = (fERadian - fSRadian) / 6.0f;
+        for(int i = 0; i < 7; i++)
+        {
+            double dTime = dStartTime + i * dDelTime;
+            float fRadian = fSRadian + i*dDelRadian;
+            float fX = fR * (float)cos(fRadian) - fR * sin(Mathf::Pi / 6.0f);
+            float fZ = -fR * (float)sin(fRadian);
+            Vector3f pt(fX, 1.5f, fZ);
+            Quatf quat(0.0f, 1.0f, 0.0f, fRadian);
+            m_animationPath.insert(dTime, AnimationPath::ControlPoint(pt, quat));
+        }
+
+    }
 
 }
