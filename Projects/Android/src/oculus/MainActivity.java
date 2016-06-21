@@ -47,7 +47,7 @@ public class MainActivity extends VrActivity {
 
 
     public static native long nativeSetAppInterface( VrActivity act, String fromPackageNameString, String commandString, String uriString );
-	public static native void nativeReciveData(long appPtr, int value);
+	public static native void nativeReciveData(long appPtr, int value, double dSpeed);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -228,6 +228,7 @@ public class MainActivity extends VrActivity {
 		@Override
 		public void handleMessage(Message msg)
 		{
+			Log.i(TAG, " mBoxingDataHandler handleMessage ");
 			switch (msg.what)
 			{
 				case Constants.MESSAGE_BOXING_START:
@@ -237,8 +238,10 @@ public class MainActivity extends VrActivity {
 				case Constants.MESSAGE_BOXING_END:
 				{
 					int hitValue = msg.getData().getInt(Constants.HitMaxValue);
-					Log.i(TAG, "boing end value:"+Integer.toString(hitValue));
-					nativeReciveData(getAppPtr(), hitValue);
+					double dSpeed = msg.getData().getDouble(Constants.MoveSpeed);
+					Log.i(TAG, "boing hit value:"+Integer.toString(hitValue));
+					Log.i(TAG, "boing speed value:"+Double.toString(dSpeed));
+					nativeReciveData(getAppPtr(), hitValue, dSpeed);
 					break;
 				}
 			}

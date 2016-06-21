@@ -30,22 +30,22 @@ jlong Java_oculus_MainActivity_nativeSetAppInterface( JNIEnv * jni, jclass clazz
 	return (new OvrTemplateApp::OvrApp())->SetActivity( jni, clazz, activity, fromPackageName, commandString, uriString );
 }
 
-void Java_oculus_MainActivity_nativeReciveData( JNIEnv *jni, jclass clazz, jlong interfacePtr , int value )
+void Java_oculus_MainActivity_nativeReciveData( JNIEnv *jni, jclass clazz, jlong interfacePtr , int value, double dSpeed )
 {
 	// This is called by the java UI thread.
 	OvrTemplateApp::OvrApp * ovrApp = static_cast< OvrTemplateApp::OvrApp * >( ( ( OVR::App * )interfacePtr )->GetAppInterface() );
 	//JavaUTFChars utfstring(jni, receiveString);
-	const char * msg = ovrApp->GetMessageQueue().GetNextMessage();
-	int iMaxValue = value;
-	if ( msg != NULL )
-	{
-		int iLastValue = 0.0;
-		sscanf( msg, "%d", &iLastValue);
-		iMaxValue = OVRMath_Max(iLastValue, value);
-	}
-	free( (void *)msg );
+//	const char * msg = ovrApp->GetMessageQueue().GetNextMessage();
+//	int iMaxValue = value;
+//	if ( msg != NULL )
+//	{
+//		int iLastValue = 0.0;
+//		sscanf( msg, "%d", &iLastValue);
+//		iMaxValue = OVRMath_Max(iLastValue, value);
+//	}
+//	free( (void *)msg );
 	ovrApp->GetMessageQueue().ClearMessages();
-	ovrApp->GetMessageQueue().PostPrintf( "%d", iMaxValue );
+	ovrApp->GetMessageQueue().PostPrintf( "%d %lf", value, dSpeed );
 
 }
 
@@ -80,7 +80,6 @@ OvrApp::OvrApp()
 	, Locale( NULL )
     , m_MessageQueue(100)
 ,m_pBoxModelFile(NULL)
-,m_bFighting(false)
 {
 	m_pAnimationMgr = new AnimationManager(&m_boxInScene);
 }
@@ -103,7 +102,7 @@ void OvrApp::OneTimeInit( const char * fromPackage, const char * launchIntentJSO
 	OVR_UNUSED( launchIntentJSON );
 	OVR_UNUSED( launchIntentURI );
 
-	OVR::Capture::InitForRemoteCapture(OVR::Capture::All_Flags);
+	OVR::Capture::InitForRemoteCapture(OVR::Capture::Enable_Logging);
 
 	const ovrJava * java = app->GetJava();
 	SoundEffectContext = new ovrSoundEffectContext( *java->Env, java->ActivityObject );
@@ -289,9 +288,25 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 
 	void OvrApp::Command( const char * msg )
 	{
-		int iValue = 0.0;
-		sscanf( msg, "%d", &iValue);
-		m_iMaxValue = OVRMath_Max(m_iMaxValue, iValue);
+		sscanf( msg, "%d %lf", &m_iValue, &m_dHitSpeed);
+
+		if (!m_pAnimationMgr->IsAnimationing())
+		{
+			double dTimeNow = vrapi_GetTimeInSeconds();
+			String strVoice;
+			double dSpeed = 0.5;
+			GetVoiceNameAndSpeed(m_iValue, strVoice, dSpeed, m_strMessage);
+			SoundEffectPlayer->Play(strVoice.ToCStr());
+			m_pAnimationMgr->BeginAnimation(dTimeNow, dSpeed);
+//				String s = "come on!";
+//				float textScale = 2.0;
+//				Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
+//				m_OvrSurfaceTextDef.geo.Free();
+//				m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
+//
+//				m_textModelFile.Def.surfaces.Clear();
+//				m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
+		}
 //		String s = String::Format("%s", msg);
 //		float textScale = 1.0;
 //		Vector4f textColor = Vector4f(1.0, 0.0, 0.0, 1.0);
@@ -356,44 +371,17 @@ Matrix4f OvrApp::DrawEyeView( const int eye, const float fovDegreesX, const floa
 			{
 				break;
 			}
-			if (!m_bFighting)
-			{
-				m_bFighting = true;
-				// begin fight
-				m_iMaxValue = 0;
-			}
 			Command( msg );
 			free( (void *)msg );
-			m_dFightTime = dTimeNow;
 		}
-		if(m_bFighting && (dTimeNow - m_dFightTime) > 1.0)
-		{
-			m_bFighting = false;
-			// begin animation
-			if (!m_pAnimationMgr->IsAnimationing())
-			{
-				String strVoice;
-				double dSpeed = 0.5;
-				GetVoiceNameAndSpeed(m_iMaxValue, strVoice, dSpeed, m_strMessage);
-				SoundEffectPlayer->Play(strVoice.ToCStr());
-				m_pAnimationMgr->BeginAnimation(dTimeNow, dSpeed);
-//				String s = "come on!";
-//				float textScale = 2.0;
-//				Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
-//				m_OvrSurfaceTextDef.geo.Free();
-//				m_OvrSurfaceTextDef = app->GetDebugFont().TextSurface(s.ToCStr(), textScale, textColor, HORIZONTAL_LEFT, VERTICAL_BASELINE);
-//
-//				m_textModelFile.Def.surfaces.Clear();
-//				m_textModelFile.Def.surfaces.PushBack(m_OvrSurfaceTextDef);
-			}
-		}
+
 	}
 	void OvrApp::Update(const OVR::VrFrame &vrFrame)
 	{
 		if (m_pAnimationMgr->Update(vrFrame, Scene.GetEyeYaw()))
 		{
 			// end animation
-			String s = String::Format("%s %d", m_strMessage.ToCStr(), m_iMaxValue);
+			String s = String::Format("weight: %d\nspeed: %.0lf", m_iValue, m_dHitSpeed);
 			float textScale = 2.0;
 			Vector4f textColor = Vector4f(0.1, 0.1, 1.0, 1.0);
 			m_OvrSurfaceTextDef.geo.Free();

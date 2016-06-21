@@ -76,12 +76,13 @@ private:
 	OVR::ModelFile *m_pBoxModelFile;
 
 	//
-	bool m_bFighting;
-	double m_dFightTime;	//seconds
 	AnimationManager* m_pAnimationMgr;
 
 	//
-	int m_iMaxValue;
+	int m_iValue;
+
+	//
+	double m_dHitSpeed;
 	//
 	OVR::String m_strMessage;
 

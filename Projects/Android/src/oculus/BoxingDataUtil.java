@@ -5,6 +5,11 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
+
+import java.lang.Integer;
+import java.lang.Long;
+import java.lang.System;
+
 /**
  * Created by jun on 2016/6/20.
  */
@@ -20,6 +25,10 @@ public class BoxingDataUtil {
     private int mMaxHitValue;
 
     private final int mMinValidValue = 0;
+
+    private long mHitTime;
+
+    private double mdMaxSpeedValue;
 
     public BoxingDataUtil( Handler handler)
     {
@@ -42,8 +51,9 @@ public class BoxingDataUtil {
     public synchronized void AddNewData(byte[] readBuf, int count)
     {
         mReceiveDatas = ByteUtil.Merge(mReceiveDatas, readBuf, count);
-        if(null == mReceiveDatas)
+        if(null == mReceiveDatas) {
             return;
+        }
 
         // find rangeData
         final byte byteStart = (byte)0xAC;
@@ -77,33 +87,32 @@ public class BoxingDataUtil {
                 break;
             }
             //
-            if (iByteEndIndex - iByteStartIndex == 9)// 10 bytes
+            if (iByteEndIndex - iByteStartIndex == 10)// 11 bytes
             {
-                //int iLength = mReceiveDatas[iByteStartIndex+1];
-                //Log.i(TAG,"iLength:"+Integer.toString(iLength));
-                int iType = mReceiveDatas[iByteStartIndex+2];
-                //Log.i(TAG, "iType:"+Integer.toString(iType));
-                //int iLR = mReceiveDatas[iByteStartIndex+3];
+                //int iLR = mReceiveDatas[iByteStartIndex+1];
                 //Log.i(TAG, "LR:"+Integer.toString(iLR));
-                if(19 == iType)
-                {
-                    int value = Get16BitValue(mReceiveDatas, iByteStartIndex+4);
-                    if (value == 0) {
-                        Log.i(TAG, "iValue:" + Integer.toString(value));
-                    }
-                    // imu data
-                    int imux = Get16BitValue(mReceiveDatas,iByteStartIndex + 5);
-                    int imuy = Get16BitValue(mReceiveDatas, iByteStartIndex+6);
-                    int imuz = Get16BitValue(mReceiveDatas, iByteStartIndex+7);
-                    Log.i(TAG, "imux:" + Integer.toString(imux));
-                    Log.i(TAG, "imuy:" + Integer.toString(imuy));
-                    Log.i(TAG, "imuz:" + Integer.toString(imuz));
 
-                    AddNewData(ConvertValue(value));
-//                    if (value < 650) {
-//                        nativeReciveData(getAppPtr(), 650 - value);
-//                    }
+                int value = Get16BitValue(mReceiveDatas, iByteStartIndex+2);
+                if (value == 0) {
+                    Log.i(TAG, "iValue:" + Integer.toString(value));
                 }
+                Log.i(TAG, "iValue:" + Integer.toString(value));
+                // imu data
+                float imux = (float)Get16BitValue(mReceiveDatas,iByteStartIndex + 4) / 100.0f;
+                float imuy =  (float)Get16BitValue(mReceiveDatas, iByteStartIndex+6) / 100.0f;
+                float imuz =  (float)Get16BitValue(mReceiveDatas, iByteStartIndex+8) / 100.0f;
+
+                double dTemp = imux * imux+imuy*imuy+imuz*imuz;;
+
+                double dValue = Math.sqrt(dTemp);
+//                Log.i(TAG, "imux:" + Float.toString(imux));
+//                Log.i(TAG, "imuy:" + Float.toString(imuy));
+//                Log.i(TAG, "imuz:" + Float.toString(imuz));
+//                Log.i(TAG, "imuHe:" + Double.toString(dTemp));
+                Log.i(TAG, "imu:" + Double.toString(dValue));
+
+                AddNewData(ConvertValue(value), dValue);
+
             }
         }
         int iRemoveCount = 0;
@@ -122,38 +131,42 @@ public class BoxingDataUtil {
         return 650 - value;
     }
 
-    private void AddNewData(int value) {
-        if(!IsValidData(value))
+    private void AddNewData(int value, double dSpeedValue) {
+        long lTimeNow = System.currentTimeMillis();
+        mdMaxSpeedValue = Math.max(mdMaxSpeedValue, dSpeedValue);
+        if(IsValidData(value))
         {
-            return;
+            if(!mHiting)
+            {
+                BeginHiting();
+            }
+            mMaxHitValue = Math.max(mMaxHitValue, value);
+            mHitTime = lTimeNow;
         }
         else
         {
-            if(mHiting)
+            if(mHiting && (lTimeNow - mHitTime) > 500)
             {
-                mHiting = false;
+                // if 500 millisecond no hit ,then hit end
                 EndHiting();
             }
         }
-        if(!mHiting)
-        {
-            mMaxHitValue = mMinValidValue;
-            mHiting = true;
-            BeginHiting();
-        }
-        mMaxHitValue = Math.max(mMaxHitValue, value);
     }
 
     private void EndHiting() {
-        Message msg = mHandler.obtainMessage(Constants.MESSAGE_DEVICE_NAME);
+        mHiting = false;
+        Message msg = mHandler.obtainMessage(Constants.MESSAGE_BOXING_END);
         Bundle bundle = new Bundle();
         bundle.putInt(Constants.HitMaxValue, mMaxHitValue);
+        bundle.putDouble(Constants.MoveSpeed, mdMaxSpeedValue);
         msg.setData(bundle);
         mHandler.sendMessage(msg);
+        mdMaxSpeedValue = 0.0;
     }
 
     private void BeginHiting() {
-
+        mHiting = true;
+        mMaxHitValue = mMinValidValue;
     }
 
     private boolean IsValidData(int value) {
