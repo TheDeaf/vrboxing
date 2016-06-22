@@ -28,7 +28,37 @@ public class BoxingDataUtil {
 
     private long mHitTime;
 
-    private double mdMaxSpeedValue;
+    private double mdSpeedValue;
+
+    private final int mSpeedQueueCount = 10;
+
+    private int []mSpeedQueue = new int[mSpeedQueueCount];
+    int mIndex = 0;
+
+    private void AddToSpeedQueue(int iValue)
+    {
+        mSpeedQueue[mIndex] = iValue;
+        mIndex++;
+        mIndex %=mSpeedQueueCount;
+    }
+
+    private double GetSpeedValue()
+    {
+        int iSpeedCount = 0;
+        int iAll = 0;
+        for(int i = 0; i < mSpeedQueueCount; i++)
+        {
+            if (mSpeedQueue[i] < -2300)
+            {
+                iSpeedCount++;
+                iAll+=-mSpeedQueue[i];
+            }
+        }
+        if(iSpeedCount > 0)
+            return (double)iAll / (double)iSpeedCount;
+        return 0.0;
+    }
+
 
     public BoxingDataUtil( Handler handler)
     {
@@ -98,20 +128,20 @@ public class BoxingDataUtil {
                 }
                 Log.i(TAG, "iValue:" + Integer.toString(value));
                 // imu data
-                float imux = (float)Get16BitValue(mReceiveDatas,iByteStartIndex + 4) / 100.0f;
-                float imuy =  (float)Get16BitValue(mReceiveDatas, iByteStartIndex+6) / 100.0f;
-                float imuz =  (float)Get16BitValue(mReceiveDatas, iByteStartIndex+8) / 100.0f;
+                //float imux = (float)Get16BitValue(mReceiveDatas,iByteStartIndex + 4) / 100.0f;
+                int imuy =  Get16BitValue(mReceiveDatas, iByteStartIndex + 6);
+                //float imuz =  (float)Get16BitValue(mReceiveDatas, iByteStartIndex+8) / 100.0f;
 
-                double dTemp = imux * imux+imuy*imuy+imuz*imuz;;
+                //double dTemp = imux * imux+imuy*imuy+imuz*imuz;;
 
-                double dValue = Math.sqrt(dTemp);
+                //double dValue = Math.sqrt(dTemp);
 //                Log.i(TAG, "imux:" + Float.toString(imux));
-//                Log.i(TAG, "imuy:" + Float.toString(imuy));
+                Log.i(TAG, "imuy:" + Float.toString(imuy));
 //                Log.i(TAG, "imuz:" + Float.toString(imuz));
 //                Log.i(TAG, "imuHe:" + Double.toString(dTemp));
-                Log.i(TAG, "imu:" + Double.toString(dValue));
+                //Log.i(TAG, "imu:" + Double.toString(dValue));
 
-                AddNewData(ConvertValue(value), dValue);
+                AddNewData(ConvertValue(value), imuy);
 
             }
         }
@@ -131,9 +161,10 @@ public class BoxingDataUtil {
         return 650 - value;
     }
 
-    private void AddNewData(int value, double dSpeedValue) {
+    private void AddNewData(int value, int iSpeedValue) {
         long lTimeNow = System.currentTimeMillis();
-        mdMaxSpeedValue = Math.max(mdMaxSpeedValue, dSpeedValue);
+        //mdMaxSpeedValue = Math.max(mdMaxSpeedValue, dSpeedValue);
+        AddToSpeedQueue(iSpeedValue);
         if(IsValidData(value))
         {
             if(!mHiting)
@@ -155,18 +186,19 @@ public class BoxingDataUtil {
 
     private void EndHiting() {
         mHiting = false;
+        // hand message
         Message msg = mHandler.obtainMessage(Constants.MESSAGE_BOXING_END);
         Bundle bundle = new Bundle();
         bundle.putInt(Constants.HitMaxValue, mMaxHitValue);
-        bundle.putDouble(Constants.MoveSpeed, mdMaxSpeedValue);
+        bundle.putDouble(Constants.MoveSpeed, mdSpeedValue);
         msg.setData(bundle);
         mHandler.sendMessage(msg);
-        mdMaxSpeedValue = 0.0;
     }
 
     private void BeginHiting() {
         mHiting = true;
         mMaxHitValue = mMinValidValue;
+        mdSpeedValue = GetSpeedValue();
     }
 
     private boolean IsValidData(int value) {
