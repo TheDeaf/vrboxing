@@ -20,12 +20,15 @@ import android.content.Intent;
 import com.oculus.vrappframework.VrActivity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.widget.Toast;
+import android.app.Activity;
 
 import java.lang.Override;
 
 public class MainActivity extends VrActivity {
 	public static final String TAG = "vrboxing";
 
+	private static final int REQUEST_ENABLE_BT = 1;
 
 	private BluetoothAdapter mBluetoothAdapter;
 	private final static String mLDeviceAddress = "20:16:05:05:47:09";
@@ -60,38 +63,29 @@ public class MainActivity extends VrActivity {
 
 		setAppPtr( nativeSetAppInterface( this, fromPackageNameString, commandString, uriString ) );
 
-		// bluetooth
-		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
-		mChatService = new BluetoothChatService( mHandler);
-
 		mBackgroundMusic = BackgroundMusic.getInstance(this);
 		mBackgroundMusic.playBackgroundMusic("sql2.mp3", true);
 
 		mBoxingDataUtil = new BoxingDataUtil(mBoxingDataHandler);
 
-    }
+		// bluetooth
+		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+		if(null == mBluetoothAdapter)
+		{
+			Toast.makeText(this, "bluetooth not support", Toast.LENGTH_SHORT).show();
+			finish();
+			return;
+		}
+		if (!mBluetoothAdapter.isEnabled()) {
+			//Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+			//startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+			// in gear vr can not select Intent message
+			mBluetoothAdapter.enable();
+		}
+		mChatService = new BluetoothChatService( mHandler);
 
-	// try to connect device
-	// because sometime it wile lost connect
-	private void DelyConnectDevice(long delayMillis)
-	{
-		new Handler().postDelayed(new Runnable(){
-			public void run() {
-				Log.i(TAG, "delyConnectDevice");
-				BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mRDeviceAddress);
-				if (null != device)
-				{
-					Log.i(TAG, "L device connect");
-					mChatService.connect(device, true);
-				}
-				else
-				{
-					Log.i(TAG, "L device null");
-				}
-			}
-		}, delayMillis);
-	}
+
+    }
 
 	@Override
 	public void onResume() {
@@ -102,35 +96,8 @@ public class MainActivity extends VrActivity {
 		// onResume() will be called when ACTION_REQUEST_ENABLE activity returns.
 
 		Log.i(TAG, "onResume");
-		if (mChatService != null) {
-			Log.i(TAG, "mChatService != null");
-			// Only if the state is STATE_NONE, do we know that we haven't started already
-			if (mChatService.getState() == BluetoothChatService.STATE_NONE) {
-				// Start the Bluetooth chat services
-				Log.i(TAG, "mChatService start");
-				mChatService.start();
-				Log.i(TAG, "getRemoteDevice");
-
-				DelyConnectDevice(5000);
-
-//				if(mBluetoothAdapter.getState() != mBluetoothAdapter.STATE_CONNECTING)
-//				{
-//					//try to connect r device
-//					device = mBluetoothAdapter.getRemoteDevice(mRDeviceAddress);
-//					if(null != device)
-//					{
-//						Log.i(TAG, "R device connect");
-//						mChatService.connect(device, true);
-//					}
-//					else
-//					{
-//						Log.i(TAG, "R device null");
-//					}
-//				}
-
-			}
-
-		}
+		// because bluetooth enable need some time
+		StartServiceAndConnectDevice(5000);
 
 		mBackgroundMusic.resumeBackgroundMusic();
 
@@ -153,6 +120,61 @@ public class MainActivity extends VrActivity {
 		}
 	}
 
+//	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+//		switch (requestCode) {
+//			case REQUEST_ENABLE_BT:
+//				// When the request to enable Bluetooth returns
+//				if (resultCode == Activity.RESULT_OK) {
+//					// Bluetooth is now enabled, so set up a chat session
+//					mChatService = new BluetoothChatService( mHandler);
+//					StartServiceAndConnectDevice(100);
+//				} else {
+//					// User did not enable Bluetooth or an error occurred
+//					Log.d(TAG, "BT not enabled");
+//					Toast.makeText(this, "bluetooth can not enable",
+//							Toast.LENGTH_SHORT).show();
+//					finish();
+//				}
+//		}
+//	}
+	// try to connect device
+	// because sometime it wile lost connect
+	private void DelyConnectDevice(long delayMillis)
+	{
+		new Handler().postDelayed(new Runnable() {
+			public void run() {
+				Log.i(TAG, "delyConnectDevice");
+				BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mRDeviceAddress);
+				if (null != device) {
+					Log.i(TAG, "L device connect");
+					mChatService.connect(device, true);
+				} else {
+					Log.i(TAG, "L device null");
+				}
+			}
+		}, delayMillis);
+	}
+
+	private void StartServiceAndConnectDevice(long delayMillis )
+	{
+		new Handler().postDelayed(new Runnable() {
+			public void run() {
+				if (mChatService != null) {
+					Log.i(TAG, "mChatService != null");
+					// Only if the state is STATE_NONE, do we know that we haven't started already
+					if (mChatService.getState() == BluetoothChatService.STATE_NONE) {
+						// Start the Bluetooth chat services
+						Log.i(TAG, "mChatService start");
+						mChatService.start();
+						Log.i(TAG, "getRemoteDevice");
+						DelyConnectDevice(5000);
+					}
+				}
+			}
+		}, delayMillis);
+
+	}
+
 	protected void AddReceiveData(byte[] readBuf, int count) {
 		mBoxingDataUtil.AddNewData(readBuf, count);
 	}
@@ -163,7 +185,6 @@ public class MainActivity extends VrActivity {
 	private final Handler mHandler = new Handler() {
 		@Override
 		public void handleMessage(Message msg) {
-			//FragmentActivity activity = getActivity();
 			switch (msg.what) {
 				case Constants.MESSAGE_STATE_CHANGE:
 					switch (msg.arg1) {

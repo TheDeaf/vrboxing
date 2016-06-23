@@ -67,9 +67,9 @@ public class BoxingDataUtil {
         mHiting = false;
     }
 
-    private int Get16BitValue(byte[] datas, int iStartIndex)
+    private short Get16BitValue(byte[] datas, int iStartIndex)
     {
-        int value= 0;
+        short value= 0;
         //
         for (int i = 0; i < 2; i++) {
             int shift=  i * 8;
@@ -128,16 +128,16 @@ public class BoxingDataUtil {
                 }
                 Log.i(TAG, "iValue:" + Integer.toString(value));
                 // imu data
-                //float imux = (float)Get16BitValue(mReceiveDatas,iByteStartIndex + 4) / 100.0f;
+                //int imux = Get16BitValue(mReceiveDatas,iByteStartIndex + 4);
                 int imuy =  Get16BitValue(mReceiveDatas, iByteStartIndex + 6);
-                //float imuz =  (float)Get16BitValue(mReceiveDatas, iByteStartIndex+8) / 100.0f;
+                //int imuz =  Get16BitValue(mReceiveDatas, iByteStartIndex+8);
 
                 //double dTemp = imux * imux+imuy*imuy+imuz*imuz;;
 
                 //double dValue = Math.sqrt(dTemp);
-//                Log.i(TAG, "imux:" + Float.toString(imux));
-                Log.i(TAG, "imuy:" + Float.toString(imuy));
-//                Log.i(TAG, "imuz:" + Float.toString(imuz));
+                //Log.i(TAG, "imux:" + Integer.toString(imux));
+                Log.i(TAG, "imuy:" + Integer.toString(imuy));
+                //Log.i(TAG, "imuz:" + Integer.toString(imuz));
 //                Log.i(TAG, "imuHe:" + Double.toString(dTemp));
                 //Log.i(TAG, "imu:" + Double.toString(dValue));
 
